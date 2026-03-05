@@ -22,6 +22,11 @@ groups/global/*
 *.keys.json
 .env
 
+# Local files
+nanoclaw.db
+start.sh
+services/*/.env
+
 # Temp files
 .tmp-*
 

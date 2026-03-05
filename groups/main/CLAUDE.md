@@ -36,6 +36,32 @@ When working as a sub-agent or teammate, only use `send_message` if instructed t
 
 ## Memory
 
+### Graphiti Knowledge Graph (Primary Memory)
+
+You have a **Graphiti temporal knowledge graph** via MCP tools (`mcp__graphiti__*`). Use this as your primary long-term memory.
+
+**Always do:**
+- **Store research findings** — after any web search, research, or deep dive, save the key facts, conclusions, and useful data via `add_episode`. This builds a growing knowledge base you can draw from later.
+- **Store user context** — save preferences, decisions, personal info, and important context from conversations
+- **Search before researching** — use `search_nodes` or `search_episodes` first to check if you already have relevant knowledge before doing web searches
+- The graph automatically tracks entities (people, tools, technologies, topics) and their relationships over time
+
+**When to store:**
+- Web search results that contain useful facts, comparisons, or how-tos
+- Research findings (product evaluations, technical summaries, pricing info)
+- Tutorials, setup steps, or solutions you discovered
+- User preferences, decisions, and personal info
+- Task outcomes and what worked/didn't work
+- Anything the user asks you to remember
+
+**When to search:**
+- Before doing a web search — you may already know the answer
+- Start of conversations — check for relevant context
+- When the user references something from the past
+- Before making recommendations (check stored knowledge + preferences)
+
+### File-Based Memory (Secondary)
+
 The `conversations/` folder contains searchable history of past conversations. Use this to recall context from previous sessions.
 
 When you learn something important:

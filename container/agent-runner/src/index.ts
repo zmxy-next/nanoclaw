@@ -432,7 +432,9 @@ async function runQuery(
         'TeamCreate', 'TeamDelete', 'SendMessage',
         'TodoWrite', 'ToolSearch', 'Skill',
         'NotebookEdit',
-        'mcp__nanoclaw__*'
+        'mcp__nanoclaw__*',
+        'mcp__graphiti__*',
+        'mcp__playwright__*'
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -447,6 +449,14 @@ async function runQuery(
             NANOCLAW_GROUP_FOLDER: containerInput.groupFolder,
             NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
           },
+        },
+        graphiti: {
+          type: 'sse' as const,
+          url: `http://${process.env.GRAPHITI_MCP_HOST || 'host.docker.internal'}:8000/sse`,
+        },
+        playwright: {
+          command: 'npx',
+          args: ['@playwright/mcp', '--headless'],
         },
       },
       hooks: {

@@ -4,7 +4,10 @@
  */
 import { ChildProcess, exec, spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+
+const HOME_DIR = process.env.HOME || os.homedir();
 
 import {
   CONTAINER_IMAGE,
@@ -160,6 +163,17 @@ function buildVolumeMounts(
     containerPath: '/home/node/.claude',
     readonly: false,
   });
+
+  // Mount host Claude Code credentials so the SDK can use OAuth token refresh.
+  // This avoids putting a static (expiring) token in .env.
+  const hostCredentials = path.join(HOME_DIR, '.claude', '.credentials.json');
+  if (fs.existsSync(hostCredentials)) {
+    mounts.push({
+      hostPath: hostCredentials,
+      containerPath: '/home/node/.claude/.credentials.json',
+      readonly: false,
+    });
+  }
 
   // Per-group IPC namespace: each group gets its own IPC directory
   // This prevents cross-group privilege escalation via IPC
