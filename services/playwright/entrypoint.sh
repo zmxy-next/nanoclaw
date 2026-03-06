@@ -16,4 +16,4 @@ echo "VNC ready: vnc://localhost:5900 | Web: http://localhost:3001/vnc.html"
 # Start Playwright MCP with SSE on port 8080
 # --port enables SSE transport (no --transport flag needed)
 # No --headless: uses real DISPLAY so VNC can see the browser
-exec npx @playwright/mcp --port 8080 --host 0.0.0.0 --no-sandbox --viewport-size 1280x720
+exec npx @playwright/mcp --port 8080 --host 0.0.0.0 --allowed-hosts '*' --no-sandbox --viewport-size 1280x720
