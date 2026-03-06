@@ -188,7 +188,7 @@ function createPreCompactHook(assistantName?: string): HookCallback {
 // Secrets to strip from Bash tool subprocess environments.
 // These are needed by claude-code for API auth but should never
 // be visible to commands Kit runs.
-const SECRET_ENV_VARS = ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'];
+const SECRET_ENV_VARS = ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'DISCORD_TOKEN'];
 
 function createSanitizeBashHook(): HookCallback {
   return async (input, _toolUseId, _context) => {
@@ -434,7 +434,8 @@ async function runQuery(
         'NotebookEdit',
         'mcp__nanoclaw__*',
         'mcp__graphiti__*',
-        'mcp__playwright__*'
+        'mcp__playwright__*',
+        'mcp__discord__*'
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -457,6 +458,13 @@ async function runQuery(
         playwright: {
           type: 'sse' as const,
           url: `http://${process.env.PLAYWRIGHT_MCP_HOST || 'host.docker.internal'}:8080/sse`,
+        },
+        discord: {
+          command: 'npx',
+          args: ['-y', 'mcp-discord'],
+          env: {
+            DISCORD_TOKEN: sdkEnv.DISCORD_TOKEN || '',
+          },
         },
       },
       hooks: {
