@@ -94,19 +94,21 @@ export class DiscordChannel implements Channel {
         }
       }
 
-      // Handle attachments — store placeholders so the agent knows something was sent
+      // Handle attachments — include URLs so the agent can fetch/view them
       if (message.attachments.size > 0) {
         const attachmentDescriptions = [...message.attachments.values()].map(
           (att) => {
             const contentType = att.contentType || '';
+            const name = att.name || 'file';
+            const url = att.url;
             if (contentType.startsWith('image/')) {
-              return `[Image: ${att.name || 'image'}]`;
+              return `[Image: ${name}](${url})`;
             } else if (contentType.startsWith('video/')) {
-              return `[Video: ${att.name || 'video'}]`;
+              return `[Video: ${name}](${url})`;
             } else if (contentType.startsWith('audio/')) {
-              return `[Audio: ${att.name || 'audio'}]`;
+              return `[Audio: ${name}](${url})`;
             } else {
-              return `[File: ${att.name || 'file'}]`;
+              return `[File: ${name}](${url})`;
             }
           },
         );

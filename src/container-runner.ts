@@ -200,6 +200,11 @@ function buildVolumeMounts(
       rw: true,
     },
     { host: 'services', container: '/workspace/nanoclaw/services', rw: true },
+    {
+      host: 'container/skills',
+      container: '/workspace/nanoclaw/container-skills',
+      rw: true,
+    },
   ];
   for (const m of safeMounts) {
     const hostPath = path.join(repoRoot, m.host);
