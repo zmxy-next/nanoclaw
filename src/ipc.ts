@@ -411,7 +411,10 @@ async function handleDeploy(
 ): Promise<void> {
   const now = Date.now();
   // Prune old timestamps outside the window
-  while (deployTimestamps.length > 0 && now - deployTimestamps[0] > DEPLOY_WINDOW_MS) {
+  while (
+    deployTimestamps.length > 0 &&
+    now - deployTimestamps[0] > DEPLOY_WINDOW_MS
+  ) {
     deployTimestamps.shift();
   }
   if (deployTimestamps.length >= DEPLOY_MAX) {
@@ -454,10 +457,10 @@ async function handleDeploy(
       logger.info({ sourceGroup }, 'Self-deploy: no changes to commit');
     } catch {
       // Non-zero exit means there ARE staged changes
-      execSync(
-        `git commit -m "self-deploy: ${message.replace(/"/g, '\\"')}"`,
-        { cwd: repoRoot, timeout: 10000 },
-      );
+      execSync(`git commit -m "self-deploy: ${message.replace(/"/g, '\\"')}"`, {
+        cwd: repoRoot,
+        timeout: 10000,
+      });
       logger.info({ sourceGroup, message }, 'Self-deploy: changes committed');
     }
 
@@ -473,9 +476,6 @@ async function handleDeploy(
       stdio: 'inherit',
     });
   } catch (err) {
-    logger.error(
-      { sourceGroup, err },
-      'Self-deploy failed',
-    );
+    logger.error({ sourceGroup, err }, 'Self-deploy failed');
   }
 }

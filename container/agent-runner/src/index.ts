@@ -455,8 +455,8 @@ async function runQuery(
           url: `http://${process.env.GRAPHITI_MCP_HOST || 'host.docker.internal'}:8000/sse`,
         },
         playwright: {
-          command: 'npx',
-          args: ['@playwright/mcp', '--headless'],
+          type: 'sse' as const,
+          url: `http://${process.env.PLAYWRIGHT_MCP_HOST || 'host.docker.internal'}:8080/sse`,
         },
       },
       hooks: {

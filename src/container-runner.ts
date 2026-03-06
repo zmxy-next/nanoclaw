@@ -189,8 +189,16 @@ function buildVolumeMounts(
   // Bot can edit its own MCP config, Dockerfile, and service configs
   const repoRoot = path.resolve(DATA_DIR, '..');
   const safeMounts = [
-    { host: 'container/agent-runner/src', container: '/workspace/nanoclaw/agent-runner-src', rw: true },
-    { host: 'container/Dockerfile', container: '/workspace/nanoclaw/Dockerfile', rw: true },
+    {
+      host: 'container/agent-runner/src',
+      container: '/workspace/nanoclaw/agent-runner-src',
+      rw: true,
+    },
+    {
+      host: 'container/Dockerfile',
+      container: '/workspace/nanoclaw/Dockerfile',
+      rw: true,
+    },
     { host: 'services', container: '/workspace/nanoclaw/services', rw: true },
   ];
   for (const m of safeMounts) {
