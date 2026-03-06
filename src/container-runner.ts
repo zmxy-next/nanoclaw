@@ -175,6 +175,35 @@ function buildVolumeMounts(
     });
   }
 
+  // Mount gh CLI config (read-only) for pre-authenticated GitHub access
+  const hostGhConfig = path.join(HOME_DIR, '.config', 'gh');
+  if (fs.existsSync(hostGhConfig)) {
+    mounts.push({
+      hostPath: hostGhConfig,
+      containerPath: '/home/node/.config/gh',
+      readonly: true,
+    });
+  }
+
+  // Mount safe config directories for self-deploy (all groups)
+  // Bot can edit its own MCP config, Dockerfile, and service configs
+  const repoRoot = path.resolve(DATA_DIR, '..');
+  const safeMounts = [
+    { host: 'container/agent-runner/src', container: '/workspace/nanoclaw/agent-runner-src', rw: true },
+    { host: 'container/Dockerfile', container: '/workspace/nanoclaw/Dockerfile', rw: true },
+    { host: 'services', container: '/workspace/nanoclaw/services', rw: true },
+  ];
+  for (const m of safeMounts) {
+    const hostPath = path.join(repoRoot, m.host);
+    if (fs.existsSync(hostPath)) {
+      mounts.push({
+        hostPath,
+        containerPath: m.container,
+        readonly: !m.rw,
+      });
+    }
+  }
+
   // Per-group IPC namespace: each group gets its own IPC directory
   // This prevents cross-group privilege escalation via IPC
   const groupIpcDir = resolveGroupIpcPath(group.folder);

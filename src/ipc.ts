@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -164,6 +165,8 @@ export async function processTaskIpc(
     groupFolder?: string;
     chatJid?: string;
     targetJid?: string;
+    // For deploy
+    message?: string;
     // For register_group
     jid?: string;
     name?: string;
@@ -383,7 +386,96 @@ export async function processTaskIpc(
       }
       break;
 
+    case 'deploy':
+      // Only main group can trigger deploys
+      if (!isMain) {
+        logger.warn({ sourceGroup }, 'Unauthorized deploy attempt blocked');
+        break;
+      }
+      await handleDeploy(data.message || 'self-deploy', sourceGroup);
+      break;
+
     default:
       logger.warn({ type: data.type }, 'Unknown IPC task type');
+  }
+}
+
+// Deploy rate limiting
+const deployTimestamps: number[] = [];
+const DEPLOY_MAX = 5;
+const DEPLOY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+async function handleDeploy(
+  message: string,
+  sourceGroup: string,
+): Promise<void> {
+  const now = Date.now();
+  // Prune old timestamps outside the window
+  while (deployTimestamps.length > 0 && now - deployTimestamps[0] > DEPLOY_WINDOW_MS) {
+    deployTimestamps.shift();
+  }
+  if (deployTimestamps.length >= DEPLOY_MAX) {
+    logger.warn(
+      { sourceGroup, count: deployTimestamps.length },
+      'Deploy rate limit exceeded (max 5 per 10 minutes)',
+    );
+    return;
+  }
+  deployTimestamps.push(now);
+
+  const repoRoot = path.resolve(DATA_DIR, '..');
+  const deployScript = path.join(repoRoot, 'scripts', 'self-deploy.sh');
+
+  if (!fs.existsSync(deployScript)) {
+    logger.error({ deployScript }, 'Deploy script not found');
+    return;
+  }
+
+  try {
+    // Stage and commit any changes the bot made to safe config directories
+    logger.info({ sourceGroup, message }, 'Self-deploy: committing changes...');
+    const filesToAdd = [
+      'container/agent-runner/src/',
+      'container/Dockerfile',
+      'services/',
+      'groups/main/CLAUDE.md',
+    ];
+    for (const f of filesToAdd) {
+      try {
+        execSync(`git add "${f}"`, { cwd: repoRoot, timeout: 5000 });
+      } catch {
+        // File may not have changes, that's fine
+      }
+    }
+
+    // Check if there are staged changes
+    try {
+      execSync('git diff --cached --quiet', { cwd: repoRoot });
+      logger.info({ sourceGroup }, 'Self-deploy: no changes to commit');
+    } catch {
+      // Non-zero exit means there ARE staged changes
+      execSync(
+        `git commit -m "self-deploy: ${message.replace(/"/g, '\\"')}"`,
+        { cwd: repoRoot, timeout: 10000 },
+      );
+      logger.info({ sourceGroup, message }, 'Self-deploy: changes committed');
+    }
+
+    // Push to origin
+    execSync('git push origin main', { cwd: repoRoot, timeout: 30000 });
+    logger.info({ sourceGroup }, 'Self-deploy: pushed to origin');
+
+    // Run the deploy script (pulls, builds, restarts — will kill this process)
+    logger.info({ sourceGroup }, 'Self-deploy: running deploy script...');
+    execSync(`bash "${deployScript}"`, {
+      cwd: repoRoot,
+      timeout: 300000, // 5 minute timeout
+      stdio: 'inherit',
+    });
+  } catch (err) {
+    logger.error(
+      { sourceGroup, err },
+      'Self-deploy failed',
+    );
   }
 }
