@@ -387,11 +387,7 @@ export async function processTaskIpc(
       break;
 
     case 'deploy':
-      // Only main group can trigger deploys
-      if (!isMain) {
-        logger.warn({ sourceGroup }, 'Unauthorized deploy attempt blocked');
-        break;
-      }
+      // Any registered group can trigger deploys (all have self-deploy mounts)
       await handleDeploy(data.message || 'self-deploy', sourceGroup);
       break;
 

@@ -209,6 +209,85 @@ function createSanitizeBashHook(): HookCallback {
   };
 }
 
+// Discord Control Center — mirror user messages to Discord channels
+const DISCORD_CHANNELS_FILE = '/workspace/ipc/discord-channels.json';
+const DISCORD_GUILD_ID = '1478621088714985512';
+const DISCORD_CATEGORY_ID = '1479332673016037549';
+
+interface DiscordChannelMap {
+  [groupFolder: string]: {
+    channelId: string;
+    channelName: string;
+    createdAt: string;
+  };
+}
+
+function loadDiscordChannels(): DiscordChannelMap {
+  try {
+    if (fs.existsSync(DISCORD_CHANNELS_FILE)) {
+      return JSON.parse(fs.readFileSync(DISCORD_CHANNELS_FILE, 'utf-8'));
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveDiscordChannels(map: DiscordChannelMap): void {
+  const tempPath = `${DISCORD_CHANNELS_FILE}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(map, null, 2));
+  fs.renameSync(tempPath, DISCORD_CHANNELS_FILE);
+}
+
+async function discordApiCall(token: string, endpoint: string, method: string, body?: object): Promise<unknown> {
+  if (!token) return null;
+  const res = await fetch(`https://discord.com/api/v10${endpoint}`, {
+    method,
+    headers: {
+      'Authorization': `Bot ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    log(`[discord] ${method} ${endpoint} failed: ${res.status}`);
+    return null;
+  }
+  return res.json();
+}
+
+async function mirrorUserMessage(token: string, folder: string, text: string, senderName?: string): Promise<void> {
+  if (!token) return;
+  try {
+    const map = loadDiscordChannels();
+    let channelId = map[folder]?.channelId;
+
+    if (!channelId) {
+      // Create channel on-demand
+      const channelName = folder.replace(/_/g, '-').slice(0, 100);
+      const result = await discordApiCall(token, `/guilds/${DISCORD_GUILD_ID}/channels`, 'POST', {
+        name: channelName,
+        type: 0,
+        parent_id: DISCORD_CATEGORY_ID,
+        topic: `NanoClaw mirror: ${folder} | Auto-synced`,
+      }) as { id: string } | null;
+      if (!result?.id) return;
+      channelId = result.id;
+      map[folder] = { channelId, channelName, createdAt: new Date().toISOString() };
+      saveDiscordChannels(map);
+      await discordApiCall(token, `/channels/${channelId}/messages`, 'POST', {
+        content: `**NanoClaw Discord Control Center**\nThis channel mirrors the \`${folder}\` conversation.\n---`,
+      });
+    }
+
+    const quotedLines = text.split('\n').map(l => `> ${l}`).join('\n');
+    const prefix = senderName ? `**${senderName}:**\n` : '**User:**\n';
+    let content = `${prefix}${quotedLines}`;
+    if (content.length > 2000) content = content.slice(0, 1997) + '...';
+    await discordApiCall(token, `/channels/${channelId}/messages`, 'POST', { content });
+  } catch (err) {
+    log(`[discord] user mirror failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 function sanitizeFilename(summary: string): string {
   return summary
     .toLowerCase()
@@ -449,6 +528,7 @@ async function runQuery(
             NANOCLAW_CHAT_JID: containerInput.chatJid,
             NANOCLAW_GROUP_FOLDER: containerInput.groupFolder,
             NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
+            DISCORD_TOKEN: sdkEnv.DISCORD_TOKEN || '',
           },
         },
         graphiti: {
@@ -553,6 +633,11 @@ async function main(): Promise<void> {
     prompt += '\n' + pending.join('\n');
   }
 
+  // Mirror initial user message to Discord (fire-and-forget)
+  if (!containerInput.isScheduledTask) {
+    mirrorUserMessage(sdkEnv.DISCORD_TOKEN || '', containerInput.groupFolder, containerInput.prompt).catch(() => {});
+  }
+
   // Query loop: run query → wait for IPC message → run new query → repeat
   let resumeAt: string | undefined;
   try {
@@ -588,6 +673,8 @@ async function main(): Promise<void> {
       }
 
       log(`Got new message (${nextMessage.length} chars), starting new query`);
+      // Mirror follow-up user message to Discord
+      mirrorUserMessage(sdkEnv.DISCORD_TOKEN || '', containerInput.groupFolder, nextMessage).catch(() => {});
       prompt = nextMessage;
     }
   } catch (err) {
